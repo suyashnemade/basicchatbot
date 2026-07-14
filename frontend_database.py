@@ -1,6 +1,6 @@
 import streamlit as st
 from langchain_core.messages import HumanMessage, SystemMessage
-from backend import chatbot_app
+from backend_database import chatbot_app, retreve_all_thread
 import uuid
 
 #-----------------------------utiliy functions----------------------------------------#
@@ -42,18 +42,17 @@ def load_conversation(thread_id):
 
 #---------------------------------------------------------------------------------------#
 
-if 'thread_id' not in st.session_state:
-    st.session_state['thread_id'] = generate_uuid()
-
 CONFIG = {"configurable": {"thread_id": st.session_state['thread_id']}}
 
 if 'message_history' not in st.session_state:
     st.session_state['message_history'] = []
 
+if 'thread_id' not in st.session_state:
+    st.session_state['thread_id'] = generate_uuid()
+
 
 if 'chat_thread_id' not in st.session_state:
-    st.session_state['chat_thread_id'] = {}
-
+    st.session_state['chat_thread_id'] = retreve_all_thread()
 add_thread(st.session_state['thread_id'])
 
 

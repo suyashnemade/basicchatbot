@@ -17,3 +17,5 @@ dotenv
 ipykernel
 
 streamlit
+
+langgraph-checkpoint-sqlite
