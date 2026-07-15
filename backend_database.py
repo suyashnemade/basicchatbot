@@ -37,9 +37,22 @@ graph.add_edge("chat", END)
 chatbot_app = graph.compile(checkpointer=checkpointer)
 
 
-def retreve_all_thread():
-    all_thread_ids = set()
-    for checkpoint in checkpointer.list(None):
-        all_thread_ids.add(checkpoint.config['configurable']['thread_id'])
+# def retreve_all_thread():
+#     all_thread_ids = set()
+#     for checkpoint in checkpointer.list(None):
+#         all_thread_ids.add(checkpoint.config['configurable']['thread_id'])
 
-    return list(all_thread_ids)
+#     return list(all_thread_ids)
+
+def retreve_all_thread():
+    threads = {}
+
+    for checkpoint in checkpointer.list(None):
+        thread_id = checkpoint.config["configurable"]["thread_id"]
+
+        if thread_id not in threads:
+            threads[thread_id] = {
+                "name": "New Chat"
+            }
+
+    return threads

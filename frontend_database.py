@@ -22,27 +22,30 @@ def reset_chat():
     st.session_state['message_history'] = []
 
 
-def add_thread(thread_id, name ="New Chat"):
+def add_thread(thread_id, name =None):
+    if name is None:
+        name =f"Chat {thread_id[:8]}"
     if thread_id not in st.session_state['chat_thread_id']:
         st.session_state['chat_thread_id'][thread_id] = {
-            "name":name
+            "name": name
         }
 
 
 def load_conversation(thread_id):
-    return chatbot_app.get_state(
+    state = chatbot_app.get_state(
         config={
             "configurable":{
                 "thread_id": thread_id
             }
         }
-    ).values['messages']
+    ).values.get('messages',[])
+    return state
 
 
 
 #---------------------------------------------------------------------------------------#
 
-CONFIG = {"configurable": {"thread_id": st.session_state['thread_id']}}
+
 
 if 'message_history' not in st.session_state:
     st.session_state['message_history'] = []
@@ -50,9 +53,26 @@ if 'message_history' not in st.session_state:
 if 'thread_id' not in st.session_state:
     st.session_state['thread_id'] = generate_uuid()
 
+# CONFIG = {"configurable": {"thread_id": st.session_state['thread_id']}}
+
 
 if 'chat_thread_id' not in st.session_state:
-    st.session_state['chat_thread_id'] = retreve_all_thread()
+    raw_threads = retreve_all_thread()
+    for thread_id in raw_threads:
+        try:
+            messages = load_conversation(thread_id)
+            if messages:
+                for msg in messages:
+                    if isinstance(msg, HumanMessage) or (hasattr(msg, 'type') and msg.type == 'human'):
+                        raw_threads[thread_id]['name'] = msg.content[:30]
+                        break
+                else:
+                    raw_threads[thread_id]['name'] = messages[0].content[:30]
+            else:
+                raw_threads[thread_id]['name'] = f"Chat {thread_id[:8]}"
+        except Exception:
+            raw_threads[thread_id]['name'] = f"Chat {thread_id[:8]}"
+    st.session_state['chat_thread_id'] = raw_threads
 add_thread(st.session_state['thread_id'])
 
 
@@ -65,15 +85,17 @@ add_thread(st.session_state['thread_id'])
 st.sidebar.title("ChatBot")
 if st.sidebar.button("New Chat"):
     reset_chat()
+    st.rerun()
 
 
 
 st.sidebar.header("My Conversations")
 
 tid = list(st.session_state['chat_thread_id'].keys())
+
 for thread_id in reversed(tid):
     name = st.session_state['chat_thread_id'][thread_id]['name']
-    if st.sidebar.button(name):
+    if st.sidebar.button(name, key=f"thread_{thread_id}"):
         
         st.session_state['thread_id'] = thread_id
         messages = load_conversation(thread_id)
@@ -89,6 +111,7 @@ for thread_id in reversed(tid):
             temp_messages.append({'role':role, 'content':msg.content})
 
         st.session_state['message_history'] = temp_messages
+        st.rerun()
 
 
 
@@ -101,11 +124,10 @@ for message in st.session_state['message_history']:
 
 user_input = st.chat_input('type here')
 if user_input:
-    if user_input:
-        current_chat = st.session_state["chat_thread_id"][st.session_state["thread_id"]]
+    current_chat = st.session_state["chat_thread_id"][st.session_state["thread_id"]]
 
-        if current_chat["name"] == "New Chat":  
-            current_chat["name"] = user_input[:30]
+    if current_chat["name"] == "New Chat" or current_chat["name"] == f"Chat {st.session_state['thread_id'][:8]}":  
+        current_chat["name"] = user_input[:30]
             
     st.session_state['message_history'].append(
         {
@@ -113,6 +135,15 @@ if user_input:
             'content':user_input
         }
     )
+
+    CONFIG = {
+        "configurable": {"thread_id": st.session_state['thread_id']},
+        "metadata":{
+            "thread_id": st.session_state["thread_id"],
+            "name": st.session_state['chat_thread_id'][st.session_state['thread_id']]['name']
+        },
+        "run_name": "chat_turn"
+    }
 
     with st.chat_message('user'):
         st.text(user_input)
@@ -124,9 +155,10 @@ if user_input:
                 {
                     'messages': [HumanMessage(content=user_input)]
                 },
-                config=get_config(),
+                config=CONFIG,
                 stream_mode='messages'
             )
         )
 
     st.session_state['message_history'].append({'role':'assistant', 'content':ai_message})
+    st.rerun()
